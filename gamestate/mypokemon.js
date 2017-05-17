@@ -7,7 +7,7 @@
 'use strict';
 
 // const Sim = require('./');
-var Dex = require('./sim/dex');
+var Dex = require('../sim/dex');
 
 class MyPokemon {
 	constructor(species, set) { // don't need to pass set and side right away, this is only done in the actual simulation

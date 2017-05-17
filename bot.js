@@ -5,12 +5,13 @@ require('colors');
 var https = require('https');
 var websocket = require('websocket');
 var url = require('url');
+var Config = require('./config/config');
 var Dex = require('./sim/dex');
 var Battle = require('./sim/battle');
-var MyBattle = require('./mybattle');
-var MyPokemon = require('./mypokemon');
+var MyBattle = require('./gamestate/mybattle');
+var MyPokemon = require('./gamestate/mypokemon');
 var Tools = require('./sim/dex-data').Tools;
-var MyTools = require('./mytools');
+var MyTools = require('./util/mytools');
 //var Formats = require('./config/formats').Formats;
 
 global.log = MyTools.log;
@@ -26,7 +27,7 @@ class Bot {
     this.password = password;
     this.avatar = 0;
 
-    this.actionURL = 'https://play.pokemonshowdown.com/~~showdown/action.php';
+    this.actionURL = Config.actionURL;
 
     this.battles = new Map();
     this.roomList = [];
@@ -111,10 +112,10 @@ class Bot {
         else if (data.indexOf('heavy load') !== -1) log('Failed to log in: The server is under heavy load.', 'error');
         else {
           try {
-            data = JSON.parse(data.substr(1)); // Discard first character
+            data = JSON.parse(data.substr(1));
             var assertion;
             if (data.actionsuccess) {
-              assertion = data.assertion; // todo: fix variable names
+              assertion = data.assertion;
             }
             else {
               log('Failed to log in: Error parsing data.', 'error');
@@ -143,7 +144,7 @@ class Bot {
     log(message, 'sent');
     this.connection.send(JSON.stringify(roomID + '|' + message));
   }
-  // Chat
+
   sendChat(message, roomID) {}
 
   sendPM(message, user) {}
@@ -233,7 +234,7 @@ class Bot {
           var myBattle = new MyBattle();
           this.battles.set(roomID, myBattle);
           log('Added ' + roomID + ' to battles.', 'status');
-          // for random battles: parse own in case 'request'
+          // for random battles: parse own team in case 'request'
           this.battles.get(roomID).sides.self.name = this.username;
           log('Set own name', 'status');
           this.battles.get(roomID).sides.self.avatar = this.avatar;
@@ -242,8 +243,6 @@ class Bot {
             this.battles.get(roomID).sides.self.team.push(new MyPokemon(this.loadedTeam[i].species, this.loadedTeam[i]));
           }
           log('Set own team', 'status');
-
-          //this.forfeitBattle(roomID);
         }
         break;
 
@@ -267,7 +266,7 @@ class Bot {
         this.battles.get(roomID).title = messageParts[2];
         break;
 
-      case 'player': // todo: handle random battles
+      case 'player':
         if (!this.battles.has(roomID)) return;
         var slot = messageParts[2];
         var name = messageParts[3];
@@ -345,7 +344,7 @@ class Bot {
         log('Battle ' + roomID + ' has started.', 'battle');
         break;
 
-      case 'teampreview': // todo: handle random battles
+      case 'teampreview':
         if (!this.battles.has(roomID)) return;
         // do nothing for now
         break;
@@ -375,20 +374,16 @@ class Bot {
         var slot = messageParts[2].substr(0, 2);
         var name = messageParts[2].substr(5);
         var species = messageParts[3].split(', ')[0];
-        // add name if it doesn't exist already
+        // Add name if it doesn't exist already
         if (slot == this.battles.get(roomID).sides.opponent.slot) {
           if (!this.battles.get(roomID).hasPokemonName(slot, name)) {
             this.battles.get(roomID).getPokemonBySpecies(slot, species).set.name = name;
             log('Set name of ' + species + ' to ' + name, 'status');
           }
         }
-        // set active pokemon
+        // Set active pokemon
         this.battles.get(roomID).getSideBySlot(slot).activePokemon = name;
         log('Set active pokemon of ' + slot + ' to ' + name, 'status');
-        break;
-
-      case 'faint':
-        // this is special, have to make a choice before turn ends
         break;
 
       case '-damage':
@@ -417,7 +412,7 @@ class Bot {
         var slot = messageParts[2].split(':')[0].substr(0, 2);
         var pokemon = messageParts[2].split(':')[1].substr(1);
         this.battles.get(roomID).getPokemonByName(slot, pokemon).fainted = true;
-        log('Set ' + pokemon + ' to fainted', 'status');
+        log('Set ' + pokemon + ' to fainted and removed it from faint queue', 'status');
         this.battles.get(roomID).getPokemonByName(slot, pokemon).faintQueued = false;
         if (slot == this.battles.get(roomID).sides.self.slot) {
           // start calculations
@@ -442,6 +437,7 @@ class Bot {
           case 'Sticky Web':
             this.battles.get(roomID).getSideBySlot(slot).sideConditions['Sticky Web'] = true;
             break;
+          // todo: add reflect and light screen
         }
         log('Added ' + sideCondition + ' to ' + slot + '\'s side', 'status');
         break;
@@ -463,6 +459,7 @@ class Bot {
           case 'Sticky Web':
             this.battles.get(roomID).getSideBySlot(slot).sideConditions['Sticky Web'] = false;
             break;
+          // todo: add reflect and light screen
         }
         log('Removed ' + sideCondition + ' to ' + slot + '\'s side', 'status');
         break;
@@ -518,10 +515,6 @@ class Bot {
     if (!roomID) return;
     this.send('/savereplay', roomID);
   }
-  // Make initial team prediction
-  makeInitialTeamPrediction() {}
-  // Refine team prediction
-  refineTeamPrediction() {}
   // Create tree of possible continuations
   createTree() {}
 
