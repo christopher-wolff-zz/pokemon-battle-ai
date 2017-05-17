@@ -145,7 +145,9 @@ class Bot {
     this.connection.send(JSON.stringify(roomID + '|' + message));
   }
 
-  sendChat(message, roomID) {}
+  sendChat(message, roomID) {
+    this.send(message, roomID);
+  }
 
   sendPM(message, user) {}
   // Parse
@@ -198,27 +200,24 @@ class Bot {
       case 'challstr':
         this.login(messageParts[2], messageParts[3]);
         break;
-
       case 'updateuser':
         if (messageParts[3] == 1) log('Login successfull. Username: ' + messageParts[2], 'status');
         else log('Logged in as guest.', 'status');
         this.avatar = messageParts[4];
         break;
-
       case 'updatechallenges':
         var challenges = JSON.parse(messageParts[2]);
         if (challenges.challengesFrom.cosine180) // only accept challenges from me for now
           this.acceptChallenge('cosine180');
-
       case 'updatesearch':
         //var obj = JSON.parse(messageParts[2]); // THIS IS HOW TO EXTRACT JSON FROM MESSAGE
         break;
-
       case 'init':
         if (messageParts[2] != 'battle') return;
         if (!this.battles.has(roomID)) {
           log('Found battle in room ' + roomID, 'status');
           this.roomList.push(roomID);
+          this.setHiddenRoom(roomID);
           /*
           // Create new battle
           var battle = new Battle();
@@ -245,13 +244,11 @@ class Bot {
           log('Set own team', 'status');
         }
         break;
-
       case 'deinit':
         if (this.roomList.indexOf(roomID)) {
           var index = this.roomList.indexOf(roomID);
           this.roomList.splice(index, 1);
         }
-
       case 'tie':
       case 'win':
         if (this.battles.has(roomID)) {
@@ -260,18 +257,15 @@ class Bot {
           log('Removed ' + roomID + ' from battles.', 'status');
         }
         break;
-
       case 'title':
         if (!this.battles.has(roomID)) return;
         this.battles.get(roomID).title = messageParts[2];
         break;
-
       case 'player':
         if (!this.battles.has(roomID)) return;
         var slot = messageParts[2];
         var name = messageParts[3];
         var avatar = messageParts[4];
-
         if (name == this.username) {
           this.battles.get(roomID).sides.self.slot = slot;
           log('Set own slot to ' + slot, 'status');
@@ -285,23 +279,19 @@ class Bot {
           log('Set opponent\'s avatar to ' + avatar, 'status');
         }
         break;
-
       case 'tier':
         if (!this.battles.has(roomID)) return;
         var tier = messageParts[2];
         this.battles.get(roomID).tier = tier;
         log('Set tier to ' + tier, 'status');
         break;
-
       case 'rated':
         if (!this.battles.has(roomID)) return;
         this.battles.get(roomID).rated = true;
         log('Set rated to true');
         break;
-
       case 'poke': // todo: handle random battles
         if (!this.battles.has(roomID)) return;
-
         var slot = messageParts[2];
         var details = messageParts[3];
         var species = details.split(', ')[0];
@@ -337,22 +327,18 @@ class Bot {
             log('Set shiny of ' + species + ' to true', 'status');
           }
         }
-
         break;
-
       case 'start':
         log('Battle ' + roomID + ' has started.', 'battle');
         break;
-
       case 'teampreview':
         if (!this.battles.has(roomID)) return;
-        // do nothing for now
+        this.sendChat('Beep boop', roomID);
         break;
-
       case 'request':
         if (!this.battles.has(roomID)) return;
         if (this.battles.get(roomID).turn == 0) {
-          this.chooseTeamOrder(123456, roomID);
+          this.chooseTeamOrder(623451, roomID);
           this.battles.get(roomID).turn++; // DONT ACTUALLY DO THIS, JUST TESTING
         }
         else {
@@ -360,7 +346,6 @@ class Bot {
           this.chooseMove(randomChoice, roomID);
         }
         break;
-
       case 'turn':
         if (!this.battles.has(roomID)) return;
         // Initiate calculations
@@ -368,7 +353,6 @@ class Bot {
         log('-----Turn ' + turn + ' has started-----', 'battle');
         this.battles.get(roomID).turn = turn;
         break;
-
       case 'switch':
         if (!this.battles.has(roomID)) return;
         var slot = messageParts[2].substr(0, 2);
@@ -385,7 +369,6 @@ class Bot {
         this.battles.get(roomID).getSideBySlot(slot).activePokemon = name;
         log('Set active pokemon of ' + slot + ' to ' + name, 'status');
         break;
-
       case '-damage':
         if (!this.battles.has(roomID)) return;
         var slot = messageParts[2].split(':')[0].substr(0, 2);
@@ -398,7 +381,6 @@ class Bot {
         }
         this.battles.get(roomID).setHP(slot, pokemon, hp);
         break;
-
       case '-heal':
         if (!this.battles.has(roomID)) return;
         var slot = messageParts[2].split(':')[0].substr(0, 2);
@@ -406,20 +388,18 @@ class Bot {
         var hp = messageParts[3].split('/')[0]; // could be either exact or percentage
         this.battles.get(roomID).setHP(slot, pokemon, hp);
         break;
-
       case 'faint':
         if (!this.battles.has(roomID)) return;
         var slot = messageParts[2].split(':')[0].substr(0, 2);
         var pokemon = messageParts[2].split(':')[1].substr(1);
         this.battles.get(roomID).getPokemonByName(slot, pokemon).fainted = true;
-        log('Set ' + pokemon + ' to fainted and removed it from faint queue', 'status');
+        log('Set ' + pokemon + ' to fainted', 'status');
+        log('Removed ' + pokemon + ' from faint queue', 'status');
         this.battles.get(roomID).getPokemonByName(slot, pokemon).faintQueued = false;
         if (slot == this.battles.get(roomID).sides.self.slot) {
           // start calculations
-
         }
         break;
-
       case '-sidestart':
         if (!this.battles.has(roomID)) return;
         var slot = messageParts[2].substr(0, 2);
@@ -437,11 +417,13 @@ class Bot {
           case 'Sticky Web':
             this.battles.get(roomID).getSideBySlot(slot).sideConditions['Sticky Web'] = true;
             break;
+          default:
+            log('Unknown side condition: ' + sideCondition, 'error');
+            return;
           // todo: add reflect and light screen
         }
         log('Added ' + sideCondition + ' to ' + slot + '\'s side', 'status');
         break;
-
       case '-sideend':
         if (!this.battles.has(roomID)) return;
         var slot = messageParts[2].substr(0, 2);
@@ -459,27 +441,131 @@ class Bot {
           case 'Sticky Web':
             this.battles.get(roomID).getSideBySlot(slot).sideConditions['Sticky Web'] = false;
             break;
+          default:
+            log('Unknown side condition: ' + sideCondition, 'error');
+            return;
           // todo: add reflect and light screen
         }
         log('Removed ' + sideCondition + ' to ' + slot + '\'s side', 'status');
         break;
-        break;
-
       case '-ability':
+        if (!this.battles.has(roomID)) return;
+        var slot = messageParts[2].substr(0, 2);
+        if (slot == this.battles.get(roomID).sides.opponent.slot) {
+          var pokemon = messageParts[2].substr(5);
+          var ability = messageParts[3];
+          if (!this.battles.get(roomID).getPokemonByName(slot, pokemon).set.ability) {
+            this.battles.get(roomID).getPokemonByName(slot, pokemon).set.ability = ability;
+            log('Set ability of ' + pokemon + ' to ' + ability, 'status');
+          }
+        }
+        break;
+      case '-endability':
 
         break;
+      case '-boost':
+        if (!this.battles.has(roomID)) return;
+        var slot = messageParts[2].substr(0, 2);
+        var pokemon = messageParts[2].substr(5);
+        var stat = messageParts[3];
+        var boost = messageParts[4];
+        this.battles.get(roomID).getPokemonByName(slot, pokemon).boosts[stat] += boost;
+        log('Boosted stat ' + stat + ' of ' + pokemon + ' by ' + boost, 'status');
+        break;
+      case '-unboost':
+        if (!this.battles.has(roomID)) return;
+        var slot = messageParts[2].substr(0, 2);
+        var pokemon = messageParts[2].substr(5);
+        var stat = messageParts[3];
+        var unboost = messageParts[4];
+        this.battles.get(roomID).getPokemonByName(slot, pokemon).boosts[stat] -= unboost;
+        log('Boosted stat ' + stat + ' of ' + pokemon + ' by ' + unboost, 'status');
+        break;
+      case '-setboost':
+        if (!this.battles.has(roomID)) return;
+        var slot = messageParts[2].substr(0, 2);
+        var pokemon = messageParts[2].substr(5);
+        var stat = messageParts[3];
+        var boost = messageParts[4];
+        this.battles.get(roomID).getPokemonByName(slot, pokemon).boosts[stat] = boost;
+        log('Set stat ' + stat + ' of ' + pokemon + ' to ' + boost, 'status');
+        break;
+      case '-restoreboost':
+        if (!this.battles.has(roomID)) return;
+        var slot = messageParts[2].substr(0, 2);
+        var pokemon = messageParts[2].substr(5);
+        var stat = messageParts[3];
+        this.battles.get(roomID).getPokemonByName(slot, pokemon).boosts[stat] = 0;
+        log('Restored stat ' + stat + ' of ' + pokemon, 'status');
+        break;
+      case '-clearallboost':
+        // get active pokemon and set boosts to 0
+        break;
+      case 'fieldstart':
 
+        break;
+      case 'fieldend':
+
+        break;
+      case 'status':
+
+        break;
+      case 'curestatus':
+
+        break;
+      case 'cureteam':
+
+        break;
+      case 'item':
+
+        break;
       case '-enditem':
-
+        if (!this.battles.has(roomID)) return;
+        var slot = messageParts[2].substr(0, 2);
+        var pokemon = messageParts[2].substr(5);
+        var item = messageParts[3];
+        this.battles.get(roomID).getPokemonByName(slot, pokemon).item = '';
+        log('Removed item of ' + pokemon, 'status');
         break;
-
       case '-start':
 
         break;
-
       case '-end':
 
         break;
+      case '-weather':
+
+        break;
+      case 'move':
+
+        break;
+      case '-transform':
+
+        break;
+      // Not planing to use these
+      case '-fail':
+      case 'choice':
+      case 'upkeep':
+      case '-supereffective':
+      case 'resisted':
+      case 'immune':
+      case 'center':
+      case 'error':
+      case '-message':
+      case 'chat': case 'c': case 'c:':
+      case 'join': case 'j': case 'J':
+      case 'leave': case 'l': case 'L':
+      case 'name': case 'n': case 'N':
+      case 'battle': case 'b': case 'B':
+      case 'html': case 'uhtml': case 'uhtmlchange':
+      case 'popup':
+      case 'pm':
+      case 'usercount':
+      case 'nametaken':
+      case ':':
+        break;
+      default:
+        log('Could not parse message of type ' + messageType, 'error');
     }
   }
   // Load team
@@ -493,9 +579,17 @@ class Bot {
   searchBattle(tier) {
     this.send('/search ' + tier);
   }
+  // Challenge user
+  challengeUser(username, tier) {
+    this.send('/challenge ' + username + ', ' + tier);
+  }
   // Accept challenge
   acceptChallenge(user) {
     this.send('/accept ' + user);
+  }
+  // Set hidden room
+  setHiddenRoom(roomID) {
+    this.send('/hiddenroom', roomID);
   }
   // Choose team order
   chooseTeamOrder(order, roomID) {

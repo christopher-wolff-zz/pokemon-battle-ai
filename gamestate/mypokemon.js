@@ -66,10 +66,6 @@ class MyPokemon {
 		this.statusData = {};
 		this.volatiles = {};
 
-		this.baseAbility = '';
-		this.ability = '';
-		this.item = '';
-
 		this.addedType = '';
 		this.knownType = true;
 

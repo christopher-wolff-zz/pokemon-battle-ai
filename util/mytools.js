@@ -1,4 +1,5 @@
 class MyTools {
+
   static log(text, type) { // todo: save logs
     if (!type) type = 'log';
 
@@ -26,6 +27,7 @@ class MyTools {
         break;
     }
   }
+  
 }
 
 module.exports = MyTools;

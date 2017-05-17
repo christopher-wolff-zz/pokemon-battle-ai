@@ -15,5 +15,6 @@ var bot = new Bot(username, password);
 bot.connect(serverURL);
 setTimeout(function() {
   bot.loadTeam(Team);
+  bot.challengeUser('cosine180', 'ou');
   //bot.searchBattle('randombattle');
 }, 3000);
