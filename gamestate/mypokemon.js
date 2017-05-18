@@ -36,6 +36,9 @@ class MyPokemon {
 		//this.moveset = [];
 		//this.baseMoveset = [];
 
+		this.ability = '';
+		this.item = '';
+
 		this.trapped = false;
 		this.maybeTrapped = false;
 		this.maybeDisabled = false;
@@ -61,9 +64,12 @@ class MyPokemon {
 		this.transformed = false;
 		this.duringMove = false;
 		this.speed = 0;
-		this.abilityOrder = 0;
 
-		this.statusData = {};
+		this.statusData = {
+			'brn': false,
+			'tox': false,
+			'par': false
+		};
 		this.volatiles = {};
 
 		this.addedType = '';

@@ -14,20 +14,20 @@ class MyTools {
         console.log('error'.red + '\t' + text);
         break;
       case 'sim':
-        console.log('sim'.magenta + '\t' + text);
+        console.log('sim'.yellow + '\t' + text);
         break;
       case 'battle':
         console.log('battle'.cyan + '\t' + text);
         break;
       case 'sent':
-        console.log('sent'.yellow + '\t' + text);
+        console.log('sent'.magenta + '\t' + text);
         break;
       default:
         console.log(type + '\t' + text);
         break;
     }
   }
-  
+
 }
 
 module.exports = MyTools;

@@ -36,7 +36,16 @@ class MyBattle {
      }
      this.tier = '';
      this.rated = false;
+     this.gameType = 'singles';
+
+     this.weather = '';
+     this.weatherData = {};
+     this.terrain = '';
+     this.terrainData = {};
+     this.pseudoWeather = {};
+
      this.turn = 0;
+     this.lastMove = '';
    }
 
    getSideBySlot(slot) {
@@ -66,7 +75,7 @@ class MyBattle {
      return false;
    }
 
-   getPokemonByName(slot, name) {
+   getPokemon(slot, name) {
      for (let i = 0; i < this.getSideBySlot(slot).team.length; i++) {
        if (this.getSideBySlot(slot).team[i].set.name == name) {
          return this.getSideBySlot(slot).team[i];
@@ -88,15 +97,19 @@ class MyBattle {
 
    setHP(slot, pokemon, hp) {
      if (slot == this.sides['self'].slot) {
-       this.getPokemonByName(slot, pokemon).hp = hp;
+       this.getPokemon(slot, pokemon).hp = hp;
        log('Set hp of ' + pokemon + ' to ' + hp, 'status');
      }
      else {
-       this.getPokemonByName(slot, pokemon).hpPercent = hp;
+       this.getPokemon(slot, pokemon).hpPercent = hp;
        log('Set hp of ' + pokemon + ' to ' + hp + '%', 'status');
      }
    }
 
-}
+   getActivePokemon(slot) {
+
+   }
+
+ }
 
 module.exports = MyBattle;
