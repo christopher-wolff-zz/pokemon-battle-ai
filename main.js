@@ -1,6 +1,6 @@
 'use strict';
 
-var Bot = require('./bot');
+var MyBot = require('./mybot');
 var Config = require('./config/config');
 var Team = require('./teams/team1');
 
@@ -11,10 +11,10 @@ var username = Config.username;
 var password = Config.password;
 
 // Start bot
-var bot = new Bot(username, password);
-bot.connect(serverURL);
+var mybot = new MyBot(username, password);
+mybot.connect(serverURL);
 setTimeout(function() {
-  bot.loadTeam(Team);
-  bot.challengeUser('cosine180', 'ou');
+  mybot.loadTeam(Team);
+  mybot.challengeUser('cosine180', 'ou');
   //bot.searchBattle('randombattle');
 }, 3000);

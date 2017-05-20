@@ -31,13 +31,23 @@ class MyPokemon {
 		}
 		if (typeof set !== 'undefined') this.set = set;
 
-		//this.baseMoves = this.moves;
+		this.name = set.name.substr(0, 20);
+		this.speciesid = toId(this.species);
+		this.moves = []; // move names
+		this.baseMoves = this.moves; // base move names
 		this.movepp = {};
-		//this.moveset = [];
-		//this.baseMoveset = [];
-
-		this.ability = '';
-		this.item = '';
+		this.moveset = []; // move data
+		this.baseMoveset = []; // base move data
+		/* move object:
+		move: move.name,
+		id: move.id,
+		pp: ,
+		maxpp: ,
+		target: ,
+		disabled: false,
+		disabledSource: '',
+		used: false,
+		*/
 
 		this.trapped = false;
 		this.maybeTrapped = false;
@@ -60,10 +70,12 @@ class MyPokemon {
 		this.beingCalledBack = false;
 		this.isActive = false;
 		this.activeTurns = 0;
-		/** Has this pokemon's Start events run yet? */
+
+		this.isStarted = false;
 		this.transformed = false;
 		this.duringMove = false;
 		this.speed = 0;
+		this.abilityOrder = 0;
 
 		this.statusData = {
 			'brn': false,
@@ -71,6 +83,10 @@ class MyPokemon {
 			'par': false
 		};
 		this.volatiles = {};
+
+		this.ability = ''; // in case the ability changes
+		this.item = ''; // in case the item changes
+		this.types = []; // in case the types change
 
 		this.addedType = '';
 		this.knownType = true;

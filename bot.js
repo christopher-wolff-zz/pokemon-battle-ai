@@ -15,6 +15,7 @@ var MyTools = require('./util/mytools');
 //var Formats = require('./config/formats').Formats;
 
 global.log = MyTools.log;
+global.toId = Tools.getId;
 
 class Bot {
   // Constructor
@@ -150,6 +151,57 @@ class Bot {
   }
 
   sendPM(message, user) {}
+  // Load team
+  loadTeam(team) {
+    if (!team) return;
+
+    this.loadedTeam = team;
+    this.send('/useteam ' + Dex.packTeam(team));
+  }
+  // Find battle
+  searchBattle(tier) {
+    this.send('/search ' + tier);
+  }
+  // Challenge user
+  challengeUser(username, tier) {
+    this.send('/challenge ' + username + ', ' + tier);
+  }
+  // Accept challenge
+  acceptChallenge(user) {
+    this.send('/accept ' + user);
+  }
+  // Set hidden room
+  setHiddenRoom(roomID) {
+    this.send('/hiddenroom', roomID);
+  }
+  // Turn timer on
+  turnTimerOn(roomID) {
+    this.send('/timer on', roomID);
+  }
+  // Turn timer off
+  turnTimerOff(roomID) {
+    this.send('/timer off', roomID);
+  }
+  // Choose team order
+  chooseTeamOrder(order, roomID) {
+    this.send('/team ' + order, roomID);
+  }
+  // Choose move
+  chooseMove(moveNumber, roomID) {
+    this.send('/move ' + moveNumber, roomID);
+  }
+  // Forfeit battle
+  forfeitBattle(roomID) {
+    if (!roomID) return;
+    this.send('/forfeit', roomID);
+  }
+  // Save replay
+  saveReplay(roomID) {
+    if (!roomID) return;
+    this.send('/savereplay', roomID);
+  }
+  // Create tree of possible continuations
+  createTree() {}
   // Parse
   receiveMessage(message) {
     if (!message.startsWith('a')) return;
@@ -207,7 +259,9 @@ class Bot {
         break;
       case 'updatechallenges':
         var challenges = JSON.parse(messageParts[2]);
-        if (challenges.challengesFrom.cosine180) // only accept challenges from me for now
+        if (challenges.challengesFrom.jimjamjimothy)
+          this.acceptChallenge('jimjamjimothy');
+        if (challenges.challengesFrom.cosine180)
           this.acceptChallenge('cosine180');
       case 'updatesearch':
         //var obj = JSON.parse(messageParts[2]); // THIS IS HOW TO EXTRACT JSON FROM MESSAGE
@@ -217,31 +271,16 @@ class Bot {
         if (!this.battles.has(roomID)) {
           log('Found battle in room ' + roomID, 'status');
           this.roomList.push(roomID);
-          //this.setHiddenRoom(roomID);
-          /*
-          // Create new battle
-          var battle = new Battle();
-          let battleProtoCache = new Map();
-          var format = Dex.getFormat('OU');
-          const mod = format.mod || 'base';
-          const dex = Dex.mod(mod);
-          // Copy scripts for correct gen
-          for (let i in dex.data.Scripts) {
-            battle[i] = dex.data.Scripts[i];
-          }
-          */
-          var myBattle = new MyBattle();
-          this.battles.set(roomID, myBattle);
+          this.setHiddenRoom(roomID);
+
+          var format = 'OU'; // todo: parse this
+          var rated = true; // todo: parse this
+        	format = Dex.getFormat(format);
+
+          // Create battle
+          this.battles.set(roomID, new MyBattle());
           log('Added ' + roomID + ' to battles.', 'status');
-          // for random battles: parse own team in case 'request'
-          this.battles.get(roomID).sides.self.name = this.username;
-          log('Set own name', 'status');
-          this.battles.get(roomID).sides.self.avatar = this.avatar;
-          log('Set own avatar', 'status');
-          for (let i = 0; i < this.loadedTeam.length; i++) {
-            this.battles.get(roomID).sides.self.team.push(new MyPokemon(this.loadedTeam[i].species, this.loadedTeam[i]));
-          }
-          log('Set own team', 'status');
+
         }
         break;
       case 'deinit':
@@ -257,26 +296,28 @@ class Bot {
           log('Removed ' + roomID + ' from battles.', 'status');
         }
         break;
-      case 'title':
-        if (!this.battles.has(roomID)) return;
-        this.battles.get(roomID).title = messageParts[2];
-        break;
       case 'player':
         var slot = messageParts[2];
         var name = messageParts[3];
         var avatar = messageParts[4];
+
         if (name == this.username) {
-          this.battles.get(roomID).sides.self.slot = slot;
-          log('Set own slot to ' + slot, 'status');
+          var team = this.loadedTeam;
+          this.battles.get(roomID).join(slot, name, avatar, team);
         }
         else {
-          this.battles.get(roomID).sides.opponent.slot = slot;
-          log('Set opponent\'s slot to ' + slot, 'status');
-          this.battles.get(roomID).sides.opponent.name = name;
-          log('Set opponent\'s name to ' + name, 'status');
-          this.battles.get(roomID).sides.opponent.avatar = avatar;
-          log('Set opponent\'s avatar to ' + avatar, 'status');
+          var team = [];
+          // Create empty team
+          for (var i = 0; i < 6; i++) {
+            team.push(new MyPokemon());
+          }
+          this.battles.get(roomID).join(slot, name, avatar, team);
         }
+        break;
+      case 'teamsize':
+        var slot = messageParts[2];
+        var teamsize = messageParts[3];
+        if (slot == this.battles.get(roomID).)
         break;
       case 'tier':
         var tier = messageParts[2];
@@ -328,17 +369,12 @@ class Bot {
         log('Battle ' + roomID + ' has started.', 'battle');
         break;
       case 'teampreview':
+        this.chooseTeamOrder(623451, roomID);
         this.sendChat('Beep boop', roomID);
         break;
       case 'request':
-        if (this.battles.get(roomID).turn == 0) {
-          this.chooseTeamOrder(623451, roomID);
-          this.battles.get(roomID).turn++; // DONT ACTUALLY DO THIS, JUST TESTING
-        }
-        else {
-          var randomChoice = Math.floor(Math.random() * (4)) + 1;
-          this.chooseMove(randomChoice, roomID);
-        }
+        var randomChoice = Math.floor(Math.random() * (4)) + 1;
+        this.chooseMove(randomChoice, roomID);
         break;
       case 'turn':
         // Initiate calculations
@@ -574,6 +610,9 @@ class Bot {
         // TODO
         break;
       // Not using these for now
+      case 'formats':
+      case 'title':
+      case 'queryresponse':
       case 'cureteam':
       case 'cant':
       case 'gametype':
@@ -608,58 +647,6 @@ class Bot {
         log('Could not parse message of type ' + messageType, 'error');
     }
   }
-  // Load team
-  loadTeam(team) {
-    if (!team) return;
-
-    this.loadedTeam = team;
-    this.send('/useteam ' + Dex.packTeam(team));
-  }
-  // Find battle
-  searchBattle(tier) {
-    this.send('/search ' + tier);
-  }
-  // Challenge user
-  challengeUser(username, tier) {
-    this.send('/challenge ' + username + ', ' + tier);
-  }
-  // Accept challenge
-  acceptChallenge(user) {
-    this.send('/accept ' + user);
-  }
-  // Set hidden room
-  setHiddenRoom(roomID) {
-    this.send('/hiddenroom', roomID);
-  }
-  // Turn timer on
-  turnTimerOn(roomID) {
-    this.send('/timer on', roomID);
-  }
-  // Turn timer off
-  turnTimerOff(roomID) {
-    this.send('/timer off', roomID);
-  }
-  // Choose team order
-  chooseTeamOrder(order, roomID) {
-    this.send('/team ' + order, roomID);
-  }
-  // Choose move
-  chooseMove(moveNumber, roomID) {
-    this.send('/move ' + moveNumber, roomID);
-  }
-  // Forfeit battle
-  forfeitBattle(roomID) {
-    if (!roomID) return;
-    this.send('/forfeit', roomID);
-  }
-  // Save replay
-  saveReplay(roomID) {
-    if (!roomID) return;
-    this.send('/savereplay', roomID);
-  }
-  // Create tree of possible continuations
-  createTree() {}
-
 }
 
 module.exports = Bot;
