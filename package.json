@@ -1,0 +1,12 @@
+{
+    "name": "pokemon-battle-ai",
+    "description": "Test main bot script",
+    "author": "Christopher Wolff",
+    "version": "0.1",
+    "devDependencies": {
+        "node": "^10"
+    },
+    "scripts": {
+        "test": "node src/main.js"
+    }
+}
