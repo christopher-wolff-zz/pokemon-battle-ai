@@ -1,20 +1,20 @@
 'use strict';
 
-var MyBot = require('./mybot');
-var Config = require('./config/config');
-var Team = require('./teams/team1');
+const Bot = require('./bot')
+const team = require('../data/teams/team1');
 
-// todo: save these in config file
-var serverURL = Config.serverURL;
+// Options
+let options = {
+    debug: true,
+    actionUrl: 'https://play.pokemonshowdown.com/~~showdown/action.php',
+    serverUrl: 'ws://sim.psim.us:8000/showdown/',
+    username: 'beepboopbot',
+    password: 'notabot',
+    avatar: 0
+};
 
-var username = Config.username;
-var password = Config.password;
-
-// Start bot
-var mybot = new MyBot(username, password);
-mybot.connect(serverURL);
+var bot = new Bot(options);
+bot.connect();
 setTimeout(function() {
-  mybot.loadTeam(Team);
-  mybot.challengeUser('cosine180', 'ou');
-  //bot.searchBattle('randombattle');
+    bot.searchBattle('randombattle');
 }, 3000);
