@@ -1,5 +1,6 @@
 'use strict';
 
+const colors = require('colors');
 const https = require('https');
 const websocket = require('websocket');
 const url = require('url');
@@ -62,7 +63,9 @@ function toId(text) {
 	} else if (text && text.userid) {
 		text = text.userid;
 	}
-	if (typeof text !== 'string' && typeof text !== 'number') return '';
+	if (typeof text !== 'string' && typeof text !== 'number') {
+        return '';
+    }
 	return ('' + text).toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
@@ -71,7 +74,7 @@ function toId(text) {
  *********************************************************************/
 
  /**
-  * @typedef {Object} Options
+  * @typedef {Object} BotOptions
   * @property {boolean} [debug]
   * @property {string} [actionUrl]
   * @property {string} [serverUrl]
@@ -82,7 +85,7 @@ function toId(text) {
 
 class Bot {
     /**
-     * @param {Options} options
+     * @param {BotOptions} options
      */
     constructor(options) {
         console.log('------------------------------------------------');
@@ -175,10 +178,13 @@ class Bot {
             });
 
             res.on('end', () => {
-                if (data === ';') console.error('Failed to log in: Invalid password.');
-                else if (data.length < 50) console.error('Failed to log in: data.length < 50.');
-                else if (data.indexOf('heavy load') !== -1) console.error('Failed to log in: The server is under heavy load.');
-                else {
+                if (data === ';') {
+                    console.error('Failed to log in: Invalid password.');
+                } else if (data.length < 50) {
+                    console.error('Failed to log in: data.length < 50.');
+                } else if (data.indexOf('heavy load') !== -1) {
+                    console.error('Failed to log in: The server is under heavy load.');
+                } else {
                     let assertion;
                     try {
                         data = JSON.parse(data.substr(1));
@@ -201,7 +207,9 @@ class Bot {
             console.error('Failed to log in: ' + error.stack);
         });
 
-        if (data) req.write(data);
+        if (data) {
+            req.write(data);
+        }
         req.end();
     }
 
@@ -210,11 +218,14 @@ class Bot {
      * @param {string} roomId
      */
     send(message, roomId) {
-        if (!message || !this.connection.connected) return false;
-  	    if (!(message instanceof Array)) message = [message.toString()];
+        if (!message || !this.connection.connected) {
+            return false;
+        }
+  	    if (!(message instanceof Array)) {
+            message = [message.toString()];
+        }
         roomId = roomId || '';
-
-        console.log('>> ' + message);
+        console.log('>> %s'.green, message);
         this.connection.send(JSON.stringify(roomId + '|' + message));
     }
 
@@ -237,62 +248,71 @@ class Bot {
      * @param {string} roomId
 	 */
 	receiveLine(line, roomId) {
-        console.log(line);
-		if (line.charAt(0) !== '|') return;
+        if (line.length <= 1) {
+            return;
+        }
+        console.log('<< %s'.gray, line);
+		if (line.charAt(0) !== '|') {
+            return;
+        }
 		const [cmd, rest] = splitFirst(line.slice(1), '|');
         switch (cmd) {
-            case 'challstr':
-                const [challId, challStr] = rest.split('|');
-                this.login(challId, challStr);
-                break;
-    		case 'request':
-                if (rest.length === 0) return;
-                const request = JSON.parse(rest.replace(/\\"/g, '"'));
-                if (request.wait) {
-        			// wait request
-        			// do nothing
-        		} else if (request.forceSwitch) {
-        			// switch request
-        			const pokemon = request.side.pokemon;
-        			let chosen = /** @type {number[]} */ ([]);
-        			const choices = request.forceSwitch.map((/** @type {AnyObject} */ mustSwitch) => {
-        				if (!mustSwitch) return `pass`;
-        				let canSwitch = [1, 2, 3, 4, 5, 6];
-        				canSwitch = canSwitch.filter(i => (
-        					// not active
-        					i > request.forceSwitch.length &&
-        					// not chosen for a simultaneous switch
-        					!chosen.includes(i) &&
-        					// not fainted
-        					!pokemon[i - 1].condition.endsWith(` fnt`)
-        				));
-        				const target = randomElem(canSwitch);
-        				chosen.push(target);
-        				return `switch ${target}`;
-        			});
-        			this.choose(choices.join(`, `), roomId);
-        		} else if (request.active) {
-        			// move request
-        			const choices = request.active.map((/** @type {AnyObject} */ pokemon, /** @type {number} */ i) => {
-        				if (request.side.pokemon[i].condition.endsWith(` fnt`)) return `pass`;
-        				let canMove = [1, 2, 3, 4].slice(0, pokemon.moves.length);
-        				canMove = canMove.filter(i => (
-        					// not disabled
-        					!pokemon.moves[i - 1].disabled
-        				));
-        				const move = randomElem(canMove);
-        				const targetable = request.active.length > 1 && ['normal', 'any'].includes(pokemon.moves[move - 1].target);
-        				const target = targetable ? ` ${1 + Math.floor(Math.random() * 2)}` : ``;
-        				return `move ${move}${target}`;
-        			});
-        			this.choose(choices.join(`, `), roomId);
-        		} else {
-        			// team preview?
-        			this.choose(`default`, roomId);
-        		}
-                break;
-    		case 'error':
-    			throw new Error(rest);
+        case 'challstr':
+            const [challId, challStr] = rest.split('|');
+            this.login(challId, challStr);
+            break;
+		case 'request':
+            if (rest.length === 0) return;
+            const request = JSON.parse(rest.replace(/\\"/g, '"'));
+            if (request.wait) {
+    			// wait request
+    			// do nothing
+    		} else if (request.forceSwitch) {
+    			// switch request
+    			const pokemon = request.side.pokemon;
+    			let chosen = /** @type {number[]} */ ([]);
+    			const choices = request.forceSwitch.map((/** @type {AnyObject} */ mustSwitch) => {
+    				if (!mustSwitch) {
+                        return `pass`;
+                    }
+    				let canSwitch = [1, 2, 3, 4, 5, 6];
+    				canSwitch = canSwitch.filter(i => (
+    					// not active
+    					i > request.forceSwitch.length &&
+    					// not chosen for a simultaneous switch
+    					!chosen.includes(i) &&
+    					// not fainted
+    					!pokemon[i - 1].condition.endsWith(` fnt`)
+    				));
+    				const target = randomElem(canSwitch);
+    				chosen.push(target);
+    				return `switch ${target}`;
+    			});
+    			this.choose(choices.join(`, `), roomId);
+    		} else if (request.active) {
+    			// move request
+    			const choices = request.active.map((/** @type {AnyObject} */ pokemon, /** @type {number} */ i) => {
+    				if (request.side.pokemon[i].condition.endsWith(` fnt`)) {
+                        return `pass`;
+                    }
+    				let canMove = [1, 2, 3, 4].slice(0, pokemon.moves.length);
+    				canMove = canMove.filter(i => (
+    					// not disabled
+    					!pokemon.moves[i - 1].disabled
+    				));
+    				const move = randomElem(canMove);
+    				const targetable = request.active.length > 1 && ['normal', 'any'].includes(pokemon.moves[move - 1].target);
+    				const target = targetable ? ` ${1 + Math.floor(Math.random() * 2)}` : ``;
+    				return `move ${move}${target}`;
+    			});
+    			this.choose(choices.join(`, `), roomId);
+    		} else {
+    			// team preview?
+    			this.choose(`default`, roomId);
+    		}
+            break;
+		case 'error':
+			throw new Error(rest);
         }
 	}
 
@@ -308,7 +328,9 @@ class Bot {
 			const pokemon = request.side.pokemon;
 			let chosen = /** @type {number[]} */ ([]);
 			const choices = request.forceSwitch.map((/** @type {AnyObject} */ mustSwitch) => {
-				if (!mustSwitch) return `pass`;
+				if (!mustSwitch) {
+                    return `pass`;
+                }
 				let canSwitch = [1, 2, 3, 4, 5, 6];
 				canSwitch = canSwitch.filter(i => (
 					// not active
@@ -326,7 +348,9 @@ class Bot {
 		} else if (request.active) {
 			// move request
 			const choices = request.active.map((/** @type {AnyObject} */ pokemon, /** @type {number} */ i) => {
-				if (request.side.pokemon[i].condition.endsWith(` fnt`)) return `pass`;
+				if (request.side.pokemon[i].condition.endsWith(` fnt`)) {
+                    return `pass`;
+                }
 				let canMove = [1, 2, 3, 4].slice(0, pokemon.moves.length);
 				canMove = canMove.filter(i => (
 					// not disabled
@@ -385,12 +409,16 @@ class Bot {
     }
 
     forfeitBattle(roomId) {
-        if (!roomId) return;
+        if (!roomId) {
+            return;
+        }
         this.send('/forfeit', roomId);
     }
 
     saveReplay(roomId) {
-        if (!roomId) return;
+        if (!roomId) {
+            return;
+        }
         this.send('/savereplay', roomId);
     }
 }
