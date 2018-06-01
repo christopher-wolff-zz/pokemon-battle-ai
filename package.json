@@ -3,7 +3,9 @@
     "description": "Test main bot script",
     "author": "Christopher Wolff",
     "devDependencies": {
-        "node": "^10"
+        "node": "^10.0",
+        "colors": "^1.0",
+        "websocket": "^1.0"
     },
     "scripts": {
         "test": "node src/main.js"
