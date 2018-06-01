@@ -11,6 +11,6 @@ for (var i = 1; i <= 7; i++) {
             randomBattleMoves[pokemon] = formatsData[pokemon]['randomBattleMoves'];
         }
     }
-    let destFile = '../data/random-battle-moves/gen' + i.toString() + '-random-battle-moves.json';
+    let destFile = '../data/random-battles/gen' + i.toString() + '-moves.json';
     fs.writeFile(destFile, JSON.stringify(randomBattleMoves, null, 2), () => {});
 }
