@@ -10,7 +10,9 @@ const url = require('url');
  *********************************************************************/
 
 /**
- * @param {number[]} array
+ * Choose an element from an array at random.
+ *
+ * @param {any[]} array
  */
 function randomElem(array) {
 	return array[Math.floor(Math.random() * array.length)];
@@ -19,10 +21,6 @@ function randomElem(array) {
 /**
  * Like string.split(delimiter), but only recognizes the first `limit`
  * delimiters (default 1).
- *
- * `"1 2 3 4".split(" ", 2) => ["1", "2"]`
- *
- * `Chat.splitFirst("1 2 3 4", " ", 1) => ["1", "2 3 4"]`
  *
  * Returns an array of length exactly limit + 1.
  *
@@ -103,6 +101,9 @@ class Bot {
         this.ws = null;
     }
 
+    /**
+     * Connect to the Pokemon Showdown server `serverUrl`.
+     */
     connect() {
         this.ws = new websocket.client();
 
@@ -142,6 +143,8 @@ class Bot {
     }
 
     /**
+     * Login to an account using `this.username` and `this.password`.
+     *
      * @param {string} challId
      * @param {string} challStr
      */
@@ -214,6 +217,8 @@ class Bot {
     }
 
     /**
+     * Send a message to the server.
+     *
      * @param {string} message
      * @param {string} roomId
      */
@@ -230,6 +235,8 @@ class Bot {
     }
 
     /**
+     * Parse a chunk of text received from the server.
+     *
 	 * @param {string} chunk
 	 */
 	receive(chunk) {
@@ -244,6 +251,8 @@ class Bot {
 	}
 
     /**
+     * Parse a line of text received from the server.
+     *
 	 * @param {string} line
      * @param {string} roomId
 	 */
@@ -271,7 +280,7 @@ class Bot {
     			// switch request
     			const pokemon = request.side.pokemon;
     			let chosen = /** @type {number[]} */ ([]);
-    			const choices = request.forceSwitch.map((/** @type {AnyObject} */ mustSwitch) => {
+    			const choices = request.forceSwitch.map((/** @type {any} */ mustSwitch) => {
     				if (!mustSwitch) {
                         return `pass`;
                     }
@@ -317,12 +326,13 @@ class Bot {
 	}
 
 	/**
-	 * @param {AnyObject} request
+     * Handle an action request from the server.
+     *
+	 * @param {any} request
 	 */
 	receiveRequest(request) {
 		if (request.wait) {
 			// wait request
-			// do nothing
 		} else if (request.forceSwitch) {
 			// switch request
 			const pokemon = request.side.pokemon;
@@ -368,46 +378,83 @@ class Bot {
 		}
 	}
 
+    /**
+     * @param {string} team
+     */
     loadTeam(team) {
         this.send('/useteam ' + team);
     }
 
+    /**
+     * @param {string} tier
+     */
     searchBattle(tier) {
         this.send('/search ' + tier);
     }
 
+    /**
+     * @param {string} username
+     * @param {string} tier
+     */
     challengeUser(username, tier) {
         this.send('/challenge ' + username + ', ' + tier);
     }
 
+    /**
+     * @param {string} user
+     */
     acceptChallenge(user) {
         this.send('/accept ' + user);
     }
 
+    /**
+     * @param {string} roomId
+     */
     setHiddenRoom(roomId) {
         this.send('/hiddenroom', roomId);
     }
 
+    /**
+     * @param {string} roomId
+     */
     turnTimerOn(roomId) {
         this.send('/timer on', roomId);
     }
 
+    /**
+     * @param {string} roomId
+     */
     turnTimerOff(roomId) {
         this.send('/timer off', roomId);
     }
 
+    /**
+     * @param {string} choices
+     * @param {string} roomId
+     */
     choose(choices, roomId) {
         this.send('/choose ' + choices, roomId)
     }
 
+    /**
+     * @param {string} order
+     * @param {string} roomId
+     */
     chooseTeamOrder(order, roomId) {
         this.send('/team ' + order, roomId);
     }
 
+    /**
+     * @param {string} moveNumber
+     * @param {string} roomId
+     */
     chooseMove(moveNumber, roomId) {
         this.send('/move ' + moveNumber, roomId);
     }
 
+    /**
+     * @param {string} roomId
+     */
     forfeitBattle(roomId) {
         if (!roomId) {
             return;
@@ -415,6 +462,9 @@ class Bot {
         this.send('/forfeit', roomId);
     }
 
+    /**
+     * @param {string} roomId
+     */
     saveReplay(roomId) {
         if (!roomId) {
             return;
