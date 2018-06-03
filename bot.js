@@ -284,7 +284,9 @@ class Bot {
         case 'request':
             if (!this.battleData[roomId] || rest.length === 0) break;
             const request = JSON.parse(rest.replace(/\\"/g, '"'));
-            this.receiveRequest(request, roomId);
+            // wait until we received all battle information until we act
+            // TODO: implement properly
+            setTimeout(() => {this.receiveRequest(request, roomId)}, 100);
             break;
         case 'init':
             if (rest === 'battle' && !(roomId in this.battleData)) {
@@ -299,12 +301,14 @@ class Bot {
             if (!this.battleData[roomId]) break;
             var [playerId, name, avatar] = splitFirst(rest, '|', 2);
             if (!name) break;
-            const isSelf = (name === this.username);
+            if (name === this.username) {
+                this.battleData[roomId].myId = playerId;
+            } else {
+                this.battleData[roomId].oppId = playerId;
+            }
             this.battleData[roomId].sides[playerId] = {
                 'name': name,
-                'avatar': avatar,
-                'isSelf': isSelf,
-                'isOpponent': !isSelf
+                'avatar': avatar
             }
             break;
         case 'teamsize':
@@ -324,15 +328,33 @@ class Bot {
             if (!this.battleData[roomId]) break;
             this.battleData[roomId].tier = rest;
             break;
+        case 'clearpoke':
+            if (!this.battleData[roomId]) break;
+            // initialize pokemon array of opponent
+            const oppId = this.battleData[roomId].oppId;
+            this.battleData[roomId].sides[oppId].pokemon = [];
+            break;
         case 'poke':
             if (!this.battleData[roomId]) break;
             var [playerId, details, hasItem] = splitFirst(rest, '|', 2);
-            if (this.battleData[roomId].sides[playerId].isSelf) break;
-            console.log(`id: ${playerId}`);
-            console.log(`details: ${details}`);
-            console.log(`hasItem: ${!!hasItem}`);
-            break;
-        case 'teampreview':
+            if (playerId !== this.battleData[roomId].oppId) break;
+            details = details.split(', ');
+            var species = details[0];
+            var gender = '';
+            var level = 100;
+            for (const detail of details.slice(1)) {
+                if (detail === 'M' || detail === 'F') {
+                    gender = detail;
+                } else if (detail.startsWith('L')) {
+                    level = parseInt(detail.slice(1));
+                }
+            }
+            this.battleData[roomId].sides[playerId].pokemon.push({
+                'species': species,
+                'gender': gender,
+                'level': level,
+                'hasItem': !!hasItem
+            });
             break;
 		case 'error':
 			throw new Error(rest);
@@ -354,8 +376,8 @@ class Bot {
 		} else if (request.active) {
 			// move request
             this.moveRandom(request.active, request.side.pokemon, roomId);
-		} else {
-			// team preview?
+		} else if (request.teamPreview) {
+			// team preview
 			this.choose('default', roomId);
 		}
 	}

@@ -8,12 +8,17 @@
  * @property {string} name
  * @property {string} avatar
  * @property {number} teamSize
- * @property {boolean} isSelf
- * @property {boolean} isOpponent
+ * @property {Object[]} pokemon
  */
 
 class BattleData {
     constructor() {
+        /** @type {string} */
+        this.myId = null;
+
+        /** @type {string} */
+        this.oppId = null;
+
         /** @type {string} */
         this.title = null;
 
