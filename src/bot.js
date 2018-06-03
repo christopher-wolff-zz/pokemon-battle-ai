@@ -12,7 +12,7 @@ const url = require('url');
 /**
  * Choose an element from an array at random.
  *
- * @param {any[]} array
+ * @param {Object[]} array
  */
 function randomElem(array) {
 	return array[Math.floor(Math.random() * array.length)];
@@ -52,7 +52,7 @@ function splitFirst(str, delimiter, limit = 1) {
  * If an object with an ID is passed, its ID will be returned.
  * Otherwise, an empty string will be returned.
  *
- * @param {any} text
+ * @param {Object} text
  * @return {string}
  */
 function toId(text) {
@@ -257,13 +257,10 @@ class Bot {
      * @param {string} roomId
 	 */
 	receiveLine(line, roomId) {
-        if (line.length <= 1) {
+        if (line.length <= 1 || line.charAt(0) !== '|') {
             return;
         }
         console.log('<< %s'.gray, line);
-		if (line.charAt(0) !== '|') {
-            return;
-        }
 		const [cmd, rest] = splitFirst(line.slice(1), '|');
         switch (cmd) {
         case 'challstr':
@@ -273,52 +270,7 @@ class Bot {
 		case 'request':
             if (rest.length === 0) return;
             const request = JSON.parse(rest.replace(/\\"/g, '"'));
-            if (request.wait) {
-    			// wait request
-    			// do nothing
-    		} else if (request.forceSwitch) {
-    			// switch request
-    			const pokemon = request.side.pokemon;
-    			let chosen = /** @type {number[]} */ ([]);
-    			const choices = request.forceSwitch.map((/** @type {any} */ mustSwitch) => {
-    				if (!mustSwitch) {
-                        return `pass`;
-                    }
-    				let canSwitch = [1, 2, 3, 4, 5, 6];
-    				canSwitch = canSwitch.filter(i => (
-    					// not active
-    					i > request.forceSwitch.length &&
-    					// not chosen for a simultaneous switch
-    					!chosen.includes(i) &&
-    					// not fainted
-    					!pokemon[i - 1].condition.endsWith(` fnt`)
-    				));
-    				const target = randomElem(canSwitch);
-    				chosen.push(target);
-    				return `switch ${target}`;
-    			});
-    			this.choose(choices.join(`, `), roomId);
-    		} else if (request.active) {
-    			// move request
-    			const choices = request.active.map((/** @type {AnyObject} */ pokemon, /** @type {number} */ i) => {
-    				if (request.side.pokemon[i].condition.endsWith(` fnt`)) {
-                        return `pass`;
-                    }
-    				let canMove = [1, 2, 3, 4].slice(0, pokemon.moves.length);
-    				canMove = canMove.filter(i => (
-    					// not disabled
-    					!pokemon.moves[i - 1].disabled
-    				));
-    				const move = randomElem(canMove);
-    				const targetable = request.active.length > 1 && ['normal', 'any'].includes(pokemon.moves[move - 1].target);
-    				const target = targetable ? ` ${1 + Math.floor(Math.random() * 2)}` : ``;
-    				return `move ${move}${target}`;
-    			});
-    			this.choose(choices.join(`, `), roomId);
-    		} else {
-    			// team preview?
-    			this.choose(`default`, roomId);
-    		}
+            this.receiveRequest(request, roomId);
             break;
 		case 'error':
 			throw new Error(rest);
@@ -328,55 +280,73 @@ class Bot {
 	/**
      * Handle an action request from the server.
      *
-	 * @param {any} request
+	 * @param {Object} request
+     * @param {string} roomId
 	 */
-	receiveRequest(request) {
+	receiveRequest(request, roomId) {
 		if (request.wait) {
 			// wait request
 		} else if (request.forceSwitch) {
 			// switch request
-			const pokemon = request.side.pokemon;
-			let chosen = /** @type {number[]} */ ([]);
-			const choices = request.forceSwitch.map((/** @type {AnyObject} */ mustSwitch) => {
-				if (!mustSwitch) {
-                    return `pass`;
-                }
-				let canSwitch = [1, 2, 3, 4, 5, 6];
-				canSwitch = canSwitch.filter(i => (
-					// not active
-					i > request.forceSwitch.length &&
-					// not chosen for a simultaneous switch
-					!chosen.includes(i) &&
-					// not fainted
-					!pokemon[i - 1].condition.endsWith(` fnt`)
-				));
-				const target = randomElem(canSwitch);
-				chosen.push(target);
-				return `switch ${target}`;
-			});
-			this.choose(choices.join(`, `));
+			this.switchRandom(request.forceSwitch, request.side.pokemon, roomId);
 		} else if (request.active) {
 			// move request
-			const choices = request.active.map((/** @type {AnyObject} */ pokemon, /** @type {number} */ i) => {
-				if (request.side.pokemon[i].condition.endsWith(` fnt`)) {
-                    return `pass`;
-                }
-				let canMove = [1, 2, 3, 4].slice(0, pokemon.moves.length);
-				canMove = canMove.filter(i => (
-					// not disabled
-					!pokemon.moves[i - 1].disabled
-				));
-				const move = randomElem(canMove);
-				const targetable = request.active.length > 1 && ['normal', 'any'].includes(pokemon.moves[move - 1].target);
-				const target = targetable ? ` ${1 + Math.floor(Math.random() * 2)}` : ``;
-				return `move ${move}${target}`;
-			});
-			this.choose(choices.join(`, `));
+            this.moveRandom(request.active, request.side.pokemon, roomId);
 		} else {
 			// team preview?
-			this.choose(`default`);
+			this.choose('default', roomId);
 		}
 	}
+
+    /**
+     * @param {boolean[]} forceSwitch
+     * @param {Object[]} pokemon
+     * @param {string} roomId
+     */
+    switchRandom(forceSwitch, pokemon, roomId) {
+        let chosen = /** @type {number[]} */ ([]);
+        const choices = forceSwitch.map((/** @type {Object} */ mustSwitch) => {
+            if (!mustSwitch) {
+                return 'pass';
+            }
+            let canSwitch = [1, 2, 3, 4, 5, 6];
+            canSwitch = canSwitch.filter(i => (
+                // not active
+                i > forceSwitch.length &&
+                // not chosen for a simultaneous switch
+                !chosen.includes(i) &&
+                // not fainted
+                !pokemon[i - 1].condition.endsWith(' fnt')
+            ));
+            const target = randomElem(canSwitch);
+            chosen.push(target);
+            return `switch ${target}`;
+        });
+        this.choose(choices.join(', '), roomId);
+    }
+
+    /**
+     * @param {boolean[]} active
+     * @param {Object[]} pokemon
+     * @param {string} roomId
+     */
+     moveRandom(active, pokemon, roomId) {
+         const choices = active.map((/** @type {Object} */ poke, /** @type {number} */ i) => {
+             if (pokemon[i].condition.endsWith(' fnt')) {
+                 return 'pass';
+             }
+             let canMove = [1, 2, 3, 4].slice(0, poke.moves.length);
+             canMove = canMove.filter(i => (
+                 // not disabled
+                 !poke.moves[i - 1].disabled
+             ));
+             const move = randomElem(canMove);
+             const targetable = active.length > 1 && ['normal', 'any'].includes(poke.moves[move - 1].target);
+             const target = targetable ? ` ${1 + Math.floor(Math.random() * 2)}` : '';
+             return `move ${move}${target}`;
+         });
+         this.choose(choices.join(', '), roomId);
+     }
 
     /**
      * @param {string} team
