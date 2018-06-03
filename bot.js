@@ -5,6 +5,9 @@ const https = require('https');
 const websocket = require('websocket');
 const url = require('url');
 
+const Dex = require('./sim/dex');
+const BattleData = require('./battle-data');
+
 /*********************************************************************
  * Helper functions
  *********************************************************************/
@@ -99,10 +102,13 @@ class Bot {
 
         this.connection = null;
         this.ws = null;
+
+        this.loadedTeam = null;
+        this.battleData = {};
     }
 
     /**
-     * Connect to the Pokemon Showdown server `serverUrl`.
+     * Connect to the Pokemon Showdown server `this.serverUrl`.
      */
     connect() {
         this.ws = new websocket.client();
@@ -111,19 +117,19 @@ class Bot {
             console.error('Could not connect to server. ' + error.toString());
         });
 
-        this.ws.on('connect', (con) => {
+        this.ws.on('connect', (connection) => {
             console.log('Connected to server.');
-            this.connection = con;
+            this.connection = connection;
 
-            con.on('error', (error) => {
+            connection.on('error', (error) => {
                 console.error('Connection error: ' + error.stack);
             });
 
-            con.on('close', () => {
+            connection.on('close', () => {
                 console.log('Connection closed.');
             });
 
-            con.on('message', (message) => {
+            connection.on('message', (message) => {
                 if (message.type !== 'utf8' || message.utf8Data.charAt(0) !== 'a') {
                     return false;
                 }
@@ -140,6 +146,15 @@ class Bot {
 		}
 		let connectionUrl = this.serverUrl + randomId + '/' + randomString + '/websocket';
         this.ws.connect(connectionUrl);
+    }
+
+    /**
+     * Check if the bot is connected to the server.
+     *
+     * @returns {boolean}
+     */
+    isConnected() {
+        return !!this.connection;
     }
 
     /**
@@ -257,20 +272,67 @@ class Bot {
      * @param {string} roomId
 	 */
 	receiveLine(line, roomId) {
-        if (line.length <= 1 || line.charAt(0) !== '|') {
-            return;
-        }
+        if (line.length === 0) return;
         console.log('<< %s'.gray, line);
+        if (line.charAt(0) !== '|') return;
 		const [cmd, rest] = splitFirst(line.slice(1), '|');
         switch (cmd) {
         case 'challstr':
             const [challId, challStr] = rest.split('|');
             this.login(challId, challStr);
             break;
-		case 'request':
-            if (rest.length === 0) return;
+        case 'request':
+            if (!this.battleData[roomId] || rest.length === 0) break;
             const request = JSON.parse(rest.replace(/\\"/g, '"'));
             this.receiveRequest(request, roomId);
+            break;
+        case 'init':
+            if (rest === 'battle' && !(roomId in this.battleData)) {
+                this.battleData[roomId] = new BattleData();
+            }
+            break;
+        case 'title':
+            if (!this.battleData[roomId]) break;
+            this.battleData[roomId].title = rest;
+            break;
+        case 'player':
+            if (!this.battleData[roomId]) break;
+            var [playerId, name, avatar] = splitFirst(rest, '|', 2);
+            if (!name) break;
+            const isSelf = (name === this.username);
+            this.battleData[roomId].sides[playerId] = {
+                'name': name,
+                'avatar': avatar,
+                'isSelf': isSelf,
+                'isOpponent': !isSelf
+            }
+            break;
+        case 'teamsize':
+            if (!this.battleData[roomId]) break;
+            var [playerId, teamSize] = rest.split('|');
+            this.battleData[roomId].sides[playerId].teamSize = teamSize;
+            break;
+        case 'gametype':
+            if (!this.battleData[roomId]) break;
+            this.battleData[roomId].gameType = rest;
+            break;
+        case 'gen':
+            if (!this.battleData[roomId]) break;
+            this.battleData[roomId].gen = rest;
+            break;
+        case 'tier':
+            if (!this.battleData[roomId]) break;
+            this.battleData[roomId].tier = rest;
+            break;
+        case 'poke':
+            if (!this.battleData[roomId]) break;
+            var [playerId, details, hasItem] = splitFirst(rest, '|', 2);
+            if (this.battleData[roomId].sides[playerId].isSelf) break;
+            console.log(`id: ${playerId}`);
+            console.log(`details: ${details}`);
+            console.log(`hasItem: ${!!hasItem}`);
+            break;
+        case 'teampreview':
             break;
 		case 'error':
 			throw new Error(rest);
@@ -306,9 +368,7 @@ class Bot {
     switchRandom(forceSwitch, pokemon, roomId) {
         let chosen = /** @type {number[]} */ ([]);
         const choices = forceSwitch.map((/** @type {Object} */ mustSwitch) => {
-            if (!mustSwitch) {
-                return 'pass';
-            }
+            if (!mustSwitch) return 'pass';
             let canSwitch = [1, 2, 3, 4, 5, 6];
             canSwitch = canSwitch.filter(i => (
                 // not active
@@ -332,9 +392,7 @@ class Bot {
      */
      moveRandom(active, pokemon, roomId) {
          const choices = active.map((/** @type {Object} */ poke, /** @type {number} */ i) => {
-             if (pokemon[i].condition.endsWith(' fnt')) {
-                 return 'pass';
-             }
+             if (pokemon[i].condition.endsWith(' fnt')) return 'pass';
              let canMove = [1, 2, 3, 4].slice(0, poke.moves.length);
              canMove = canMove.filter(i => (
                  // not disabled
@@ -351,7 +409,8 @@ class Bot {
     /**
      * @param {string} team
      */
-    loadTeam(team) {
+    useTeam(team) {
+        this.loadedTeam = Dex.fastUnpackTeam(team);
         this.send('/useteam ' + team);
     }
 
@@ -426,9 +485,7 @@ class Bot {
      * @param {string} roomId
      */
     forfeitBattle(roomId) {
-        if (!roomId) {
-            return;
-        }
+        if (!roomId) return;
         this.send('/forfeit', roomId);
     }
 
@@ -436,9 +493,7 @@ class Bot {
      * @param {string} roomId
      */
     saveReplay(roomId) {
-        if (!roomId) {
-            return;
-        }
+        if (!roomId) return;
         this.send('/savereplay', roomId);
     }
 }
