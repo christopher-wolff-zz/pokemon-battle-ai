@@ -15,19 +15,14 @@ class BattleData {
     constructor() {
         /** @type {string} */
         this.myId = null;
-
         /** @type {string} */
         this.oppId = null;
-
         /** @type {string} */
         this.title = null;
-
         /** @type {string} */
         this.gameType = null;
-
         /** @type {string} */
         this.gen = null;
-
         /** @type {string} */
         this.tier = null;
 

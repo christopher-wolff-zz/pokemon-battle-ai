@@ -93,18 +93,26 @@ class Bot {
         console.log('  PokemonShowdownBattleBot (v0.1) by Cosine180  ');
         console.log('------------------------------------------------');
 
+        /** @type {boolean} */
         this.debug = options.debug | false;
+        /** @type {string} */
         this.actionUrl = options.actionUrl;
+        /** @type {string} */
         this.serverUrl = options.serverUrl;
+        /** @type {string} */
         this.username = options.username;
+        /** @type {string} */
         this.password = options.password;
+        /** @type {number} */
         this.avatar = options.avatar | 0;
 
         this.connection = null;
         this.ws = null;
 
+        /** @type {Pokemon[]} */
         this.loadedTeam = null;
         this.battleData = {};
+        this.battles = {};
     }
 
     /**
@@ -216,7 +224,7 @@ class Bot {
                     catch (e) {
                         console.error('Failed to log in: Error parsing data.');
                     }
-                    this.send('/trn ' + this.username + ',0,' + assertion);
+                    this.sendAssertion(assertion);
                 }
             });
         });
@@ -284,7 +292,7 @@ class Bot {
         case 'request':
             if (!this.battleData[roomId] || rest.length === 0) break;
             const request = JSON.parse(rest.replace(/\\"/g, '"'));
-            // wait until we received all battle information until we act
+            // wait until we received more battle information until we act
             // TODO: implement properly
             setTimeout(() => {this.receiveRequest(request, roomId)}, 100);
             break;
@@ -330,7 +338,6 @@ class Bot {
             break;
         case 'clearpoke':
             if (!this.battleData[roomId]) break;
-            // initialize pokemon array of opponent
             const oppId = this.battleData[roomId].oppId;
             this.battleData[roomId].sides[oppId].pokemon = [];
             break;
@@ -378,8 +385,12 @@ class Bot {
             this.moveRandom(request.active, request.side.pokemon, roomId);
 		} else if (request.teamPreview) {
 			// team preview
+
 			this.choose('default', roomId);
-		}
+		} else {
+            // this should never happen, but just in case
+            this.choose('default', roomId);
+        }
 	}
 
     /**
@@ -427,6 +438,13 @@ class Bot {
          });
          this.choose(choices.join(', '), roomId);
      }
+
+    /**
+     * @param {string} assertion
+     */
+    sendAssertion(assertion) {
+        this.send('/trn ' + this.username + ',0,' + assertion);
+    }
 
     /**
      * @param {string} team
