@@ -2,11 +2,15 @@
 
 const colors = require('colors');
 const https = require('https');
-const websocket = require('websocket');
 const url = require('url');
+const websocket = require('websocket');
 
+const unknown = require('./sim/unknown');
+
+const BattleInfo = require('./sim/battle-info');
 const Dex = require('./sim/dex');
-const BattleData = require('./battle-data');
+const HiddenBattle = require('./sim/hidden-battle');
+const HiddenPokemon = require('./sim/hidden-pokemon');
 
 /*********************************************************************
  * Helper functions
@@ -93,25 +97,25 @@ class Bot {
         console.log('  PokemonShowdownBattleBot (v0.1) by Cosine180  ');
         console.log('------------------------------------------------');
 
-        /** @type {boolean} */
+        /**@type {boolean} */
         this.debug = options.debug | false;
-        /** @type {string} */
+        /**@type {string} */
         this.actionUrl = options.actionUrl;
-        /** @type {string} */
+        /**@type {string} */
         this.serverUrl = options.serverUrl;
-        /** @type {string} */
+        /**@type {string} */
         this.username = options.username;
-        /** @type {string} */
+        /**@type {string} */
         this.password = options.password;
-        /** @type {number} */
+        /**@type {number} */
         this.avatar = options.avatar | 0;
 
         this.connection = null;
         this.ws = null;
 
-        /** @type {Pokemon[]} */
+        /**@type {Pokemon[]} */
         this.loadedTeam = null;
-        this.battleData = {};
+        this.battleInfo = {};
         this.battles = {};
     }
 
@@ -280,7 +284,7 @@ class Bot {
      * @param {string} roomId
 	 */
 	receiveLine(line, roomId) {
-        if (line.length === 0) return;
+        if (line.length <= 1) return;
         console.log('<< %s'.gray, line);
         if (line.charAt(0) !== '|') return;
 		const [cmd, rest] = splitFirst(line.slice(1), '|');
@@ -290,61 +294,65 @@ class Bot {
             this.login(challId, challStr);
             break;
         case 'request':
-            if (!this.battleData[roomId] || rest.length === 0) break;
+            if (!(roomId in this.battleInfo) || rest.length === 0) break;
             const request = JSON.parse(rest.replace(/\\"/g, '"'));
             // wait until we received more battle information until we act
             // TODO: implement properly
             setTimeout(() => {this.receiveRequest(request, roomId)}, 100);
             break;
         case 'init':
-            if (rest === 'battle' && !(roomId in this.battleData)) {
-                this.battleData[roomId] = new BattleData();
+            if (rest === 'battle' && !(roomId in this.battleInfo)) {
+                this.battleInfo[roomId] = new BattleInfo();
             }
             break;
         case 'title':
-            if (!this.battleData[roomId]) break;
-            this.battleData[roomId].title = rest;
+            if (!(roomId in this.battleInfo)) break;
+            this.battleInfo[roomId].title = rest;
             break;
         case 'player':
-            if (!this.battleData[roomId]) break;
+            if (!(roomId in this.battleInfo)) break;
             var [playerId, name, avatar] = splitFirst(rest, '|', 2);
             if (!name) break;
             if (name === this.username) {
-                this.battleData[roomId].myId = playerId;
+                this.battleInfo[roomId].myId = playerId;
             } else {
-                this.battleData[roomId].oppId = playerId;
+                this.battleInfo[roomId].oppId = playerId;
             }
-            this.battleData[roomId].sides[playerId] = {
+            this.battleInfo[roomId].sides[playerId] = {
                 'name': name,
                 'avatar': avatar
             }
             break;
         case 'teamsize':
-            if (!this.battleData[roomId]) break;
+            if (!(roomId in this.battleInfo)) break;
             var [playerId, teamSize] = rest.split('|');
-            this.battleData[roomId].sides[playerId].teamSize = teamSize;
+            this.battleInfo[roomId].sides[playerId].teamSize = teamSize;
             break;
         case 'gametype':
-            if (!this.battleData[roomId]) break;
-            this.battleData[roomId].gameType = rest;
+            if (!(roomId in this.battleInfo)) break;
+            this.battleInfo[roomId].gameType = rest;
             break;
         case 'gen':
-            if (!this.battleData[roomId]) break;
-            this.battleData[roomId].gen = rest;
+            if (!(roomId in this.battleInfo)) break;
+            this.battleInfo[roomId].gen = rest;
             break;
         case 'tier':
-            if (!this.battleData[roomId]) break;
-            this.battleData[roomId].tier = rest;
+            if (!(roomId in this.battleInfo)) break;
+            this.battleInfo[roomId].tier = rest;
+            break;
+        case 'rated':
+            if (!(roomId in this.battleInfo)) break;
+            this.battleInfo[roomId].rated = true;
             break;
         case 'clearpoke':
-            if (!this.battleData[roomId]) break;
-            const oppId = this.battleData[roomId].oppId;
-            this.battleData[roomId].sides[oppId].pokemon = [];
+            if (!(roomId in this.battleInfo)) break;
+            const oppId = this.battleInfo[roomId].oppId;
+            this.battleInfo[roomId].sides[oppId].team = [];
             break;
         case 'poke':
-            if (!this.battleData[roomId]) break;
+            if (!(roomId in this.battleInfo)) break;
             var [playerId, details, hasItem] = splitFirst(rest, '|', 2);
-            if (playerId !== this.battleData[roomId].oppId) break;
+            if (playerId !== this.battleInfo[roomId].oppId) break;
             details = details.split(', ');
             var species = details[0];
             var gender = '';
@@ -356,12 +364,24 @@ class Bot {
                     level = parseInt(detail.slice(1));
                 }
             }
-            this.battleData[roomId].sides[playerId].pokemon.push({
+            this.battleInfo[roomId].sides[playerId].team.push({
                 'species': species,
                 'gender': gender,
                 'level': level,
                 'hasItem': !!hasItem
             });
+            break;
+        case 'win':
+            if (!(roomId in this.battleInfo)) break;
+            const winner = rest;
+            const outcome = winner === this.username ? 'win' : 'loss';
+            console.log(`Outcome: ${outcome}`);
+            delete this.battleInfo[roomId];
+            break;
+        case 'tie':
+            if (!(roomId in this.battleInfo)) break;
+            console.log('Outcome: tie');
+            delete this.battleInfo[roomId];
             break;
 		case 'error':
 			throw new Error(rest);
@@ -385,13 +405,37 @@ class Bot {
             this.moveRandom(request.active, request.side.pokemon, roomId);
 		} else if (request.teamPreview) {
 			// team preview
-
+            this.initHiddenBattle(roomId);
 			this.choose('default', roomId);
 		} else {
             // this should never happen, but just in case
             this.choose('default', roomId);
         }
 	}
+
+    /**
+     * @param {string} roomId
+     */
+    initHiddenBattle(roomId) {
+        const battleInfo = this.battleInfo[roomId];
+        const oppTeam = battleInfo.sides[battleInfo.oppId].team;
+        const p1Team = battleInfo.myId === 'p1' ? this.loadedTeam : oppTeam;
+        const p2Team = battleInfo.myId === 'p2' ? this.loadedTeam : oppTeam;
+        const options = {
+            'formatid': battleInfo.tier,
+            'rated': battleInfo.rated,
+            'p1': {
+                'name': battleInfo.sides.p1.name,
+                'avatar': battleInfo.sides.p1.avatar,
+                'team': p1Team
+            },
+            'p2': {
+                'name': battleInfo.sides.p2.name,
+                'avatar': battleInfo.sides.p2.avatar,
+                'team': p2Team
+            }
+        };
+    }
 
     /**
      * @param {boolean[]} forceSwitch

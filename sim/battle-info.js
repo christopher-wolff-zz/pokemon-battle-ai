@@ -8,29 +8,31 @@
  * @property {string} name
  * @property {string} avatar
  * @property {number} teamSize
- * @property {Object[]} pokemon
+ * @property {Object[]} team
  */
 
-class BattleData {
+class BattleInfo {
     constructor() {
-        /** @type {string} */
+        /**@type {string} */
         this.myId = null;
-        /** @type {string} */
+        /**@type {string} */
         this.oppId = null;
-        /** @type {string} */
+        /**@type {string} */
         this.title = null;
-        /** @type {string} */
+        /**@type {string} */
         this.gameType = null;
-        /** @type {string} */
+        /**@type {string} */
         this.gen = null;
-        /** @type {string} */
+        /**@type {string} */
         this.tier = null;
+        /**@type {boolean} */
+        this.rated = false;
 
         this.sides = {
-            'p1': /** @type {SideInfo} */ null,
-            'p2': /** @type {SideInfo} */ null,
+            'p1': /**@type {SideInfo} */ null,
+            'p2': /**@type {SideInfo} */ null,
         };
     }
 }
 
-module.exports = BattleData;
+module.exports = BattleInfo;

@@ -39,7 +39,7 @@ const Pokemon = require('./pokemon');
  * @property {PlayerOptions} [p2] Player 2 data
  */
 
-class HiddenBattle extends Dex.ModdedDex {
+class Battle extends Dex.ModdedDex {
 	/**
 	 * @param {BattleOptions} options
 	 */
@@ -3476,4 +3476,4 @@ class HiddenBattle extends Dex.ModdedDex {
 	}
 }
 
-module.exports = HiddenBattle;
+module.exports = Battle;
