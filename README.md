@@ -1,4 +1,4 @@
 # Pokemon Battle AI
 Artificial Intelligence for Pokemon Showdown
 
-Status: Work in progress
+Now moved to [here](https://github.com/pokeml/pokemon-battle-ai).
